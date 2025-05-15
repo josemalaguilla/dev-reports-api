@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  ReportEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: dev-report-events-queue.fifo
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 345600 # 4 days (in seconds)
+      MaximumMessageSize: 262144 # 256 KB
+      DelaySeconds: 0
+      ReceiveMessageWaitTimeSeconds: 0
+      FifoQueue: true
+      ContentBasedDeduplication: true
+
+  ReportEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: dev-report-events-topic.fifo
+      FifoTopic: true
+      ContentBasedDeduplication: true
+
+  ReportQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref ReportEventsQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt ReportEventsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref ReportEventsTopic
+
+  ReportEventsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !GetAtt ReportEventsQueue.Arn
+      TopicArn: !Ref ReportEventsTopic
+      RawMessageDelivery: true
+
+Outputs:
+  QueueURL:
+    Description: 'The URL of the created SQS Queue'
+    Value: !GetAtt ReportEventsQueue.QueueUrl
+    Export:
+      Name: ReportEventsQueueURL
+
+  QueueARN:
+    Description: 'The ARN of the created SQS Queue'
+    Value: !GetAtt ReportEventsQueue.Arn
+    Export:
+      Name: ReportEventsQueueARN
+
+  TopicARN:
+    Description: 'The ARN of the created SNS Topic'
+    Value: !Ref ReportEventsTopic
+    Export:
+      Name: ReportEventsTopicARN

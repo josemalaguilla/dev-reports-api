@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  DeveloperEventsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: dev-developer-events-queue.fifo
+      VisibilityTimeout: 30
+      MessageRetentionPeriod: 345600 # 4 days (in seconds)
+      MaximumMessageSize: 262144 # 256 KB
+      DelaySeconds: 0
+      ReceiveMessageWaitTimeSeconds: 0
+      FifoQueue: true
+      ContentBasedDeduplication: true
+
+  DeveloperEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: dev-developer-events-topic.fifo
+      FifoTopic: true
+      ContentBasedDeduplication: true
+
+  DeveloperQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref DeveloperEventsQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt DeveloperEventsQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref DeveloperEventsTopic
+
+  DeveloperEventsSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      Endpoint: !GetAtt DeveloperEventsQueue.Arn
+      TopicArn: !Ref DeveloperEventsTopic
+      RawMessageDelivery: true
+
+Outputs:
+  QueueURL:
+    Description: 'The URL of the created SQS Queue'
+    Value: !GetAtt DeveloperEventsQueue.QueueUrl
+    Export:
+      Name: DeveloperEventsQueueURL
+
+  QueueARN:
+    Description: 'The ARN of the created SQS Queue'
+    Value: !GetAtt DeveloperEventsQueue.Arn
+    Export:
+      Name: DeveloperEventsQueueARN
+
+  TopicARN:
+    Description: 'The ARN of the created SNS Topic'
+    Value: !Ref DeveloperEventsTopic
+    Export:
+      Name: DeveloperEventsTopicARN

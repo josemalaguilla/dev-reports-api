@@ -1,0 +1,6 @@
+coverage
+.husky
+.vscode
+data
+dist
+docs

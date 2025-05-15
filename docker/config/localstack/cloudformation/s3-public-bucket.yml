@@ -1,0 +1,11 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  PublicS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      AccessControl: PublicRead
+      BucketName: dev-static-bucket-stack
+
+Outputs:
+  BucketName:
+    Value: !Ref PublicS3Bucket

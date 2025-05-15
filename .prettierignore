@@ -1,0 +1,7 @@
+/node_modules/
+/dist/
+/coverage/
+/data/
+/config/
+/docs/
+eslint.config.mjs

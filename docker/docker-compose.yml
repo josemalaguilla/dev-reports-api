@@ -1,0 +1,92 @@
+services:
+  api:
+    build:
+      dockerfile: docker/Dockerfile.dev
+      context: ..
+      target: development
+    volumes:
+      - ..:/usr/api
+      - /usr/api/node_modules
+    ports:
+      - '4000:3000'
+      - '9229:9229'
+    networks:
+      - dev-reports-network
+    env_file:
+      - ../.env
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=postgres
+      - AWS_ENDPOINT=http://localstack:4566
+    profiles:
+      - all
+      - api
+    mem_limit: 1g
+    cpus: 0.50
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_container
+    environment:
+      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_USER: admin
+      POSTGRES_DB: dev_reports_database
+    volumes:
+      - ../data/datasources/postgres-data:/var/lib/postgresql/data
+      - ./config/postgres/create_user.sql:/docker-entrypoint-initdb.d/create_user.sql
+    ports:
+      - '5432:5432'
+    networks:
+      - dev-reports-network
+    profiles:
+      - all
+      - dependencies
+    mem_limit: 1g
+    cpus: 0.75
+
+  localstack:
+    image: localstack/localstack
+    container_name: localstack_container
+    environment:
+      - SERVICES=s3,sqs,cloudformation,sns
+      - HOSTNAME=localstack
+      - HOSTNAME_EXTERNAL=localstack
+      - DEBUG=1
+    ports:
+      - '4566:4566'
+      - '4510-4559:4510-4559'
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - '../data/datasources/localstack-data:/var/lib/localstack'
+      - './config/localstack/cloudformation:/aws/cloudformation'
+    networks:
+      - dev-reports-network
+    profiles:
+      - all
+      - dependencies
+    mem_limit: 512m
+    cpus: 0.50
+
+  aws-init:
+    image: amazon/aws-cli
+    environment:
+      AWS_DEFAULT_REGION: eu-west-1
+      AWS_ACCESS_KEY_ID: dummy_access_key
+      AWS_SECRET_ACCESS_KEY: dummy_secret_key
+    depends_on:
+      - localstack
+    volumes:
+      - './config/localstack/cloudformation:/aws/cloudformation'
+      - './config/localstack/init.sh:/usr/local/bin/init.sh'
+    entrypoint: ['sh', '/usr/local/bin/init.sh']
+    networks:
+      - dev-reports-network
+    profiles:
+      - all
+      - dependencies
+    mem_limit: 128m
+    cpus: 0.25
+
+networks:
+  dev-reports-network:
+    driver: bridge
